@@ -13,7 +13,7 @@ namespace NetModular.Lib.Data.SQLite
     /// </summary>
     public class SQLiteDbContextOptions : DbContextOptionsAbstract
     {
-        public SQLiteDbContextOptions(DbOptions dbOptions, DbModuleOptions options, ILoggerFactory loggerFactory, ILoginInfo loginInfo) : base(dbOptions, options, new SQLiteAdapter(dbOptions, options, loggerFactory), loggerFactory, loginInfo)
+        public SQLiteDbContextOptions(DbOptions dbOptions, DbConfig dbConfig, ILoggerFactory loggerFactory, ILoginInfo loginInfo) : base(dbOptions, dbConfig, new SQLiteAdapter(dbOptions, dbConfig, loggerFactory), loggerFactory, loginInfo)
         {
             SqlMapper.AddTypeHandler(new GuidTypeHandler());
         }

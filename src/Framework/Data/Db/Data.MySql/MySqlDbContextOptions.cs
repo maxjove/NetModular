@@ -16,10 +16,10 @@ namespace NetModular.Lib.Data.MySql
         /// 
         /// </summary>
         /// <param name="dbOptions"></param>
-        /// <param name="options"></param>
+        /// <param name="dbConfig"></param>
         /// <param name="loggerFactory"></param>
         /// <param name="loginInfo"></param>
-        public MySqlDbContextOptions(DbOptions dbOptions, DbModuleOptions options, ILoggerFactory loggerFactory, ILoginInfo loginInfo) : base(dbOptions, options, new MySqlAdapter(dbOptions, options, loggerFactory), loggerFactory, loginInfo)
+        public MySqlDbContextOptions(DbOptions dbOptions, DbConfig dbConfig, ILoggerFactory loggerFactory, ILoginInfo loginInfo) : base(dbOptions, dbConfig, new MySqlAdapter(dbOptions, dbConfig, loggerFactory), loggerFactory, loginInfo)
         {
         }
 
