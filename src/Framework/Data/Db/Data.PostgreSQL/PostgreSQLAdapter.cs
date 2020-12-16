@@ -15,11 +15,11 @@ namespace NetModular.Lib.Data.PostgreSQL
 {
     internal class PostgreSQLAdapter : SqlAdapterAbstract
     {
-        public PostgreSQLAdapter(DbOptions dbOptions, DbModuleOptions options, ILoggerFactory loggerFactory) : base(dbOptions, options, loggerFactory?.CreateLogger<PostgreSQLAdapter>())
+        public PostgreSQLAdapter(DbOptions dbOptions, DbConfig config, ILoggerFactory loggerFactory) : base(dbOptions, config, loggerFactory?.CreateLogger<PostgreSQLAdapter>())
         {
         }
 
-        public override string Database => AppendQuote(Options.Database) + ".";
+        public override string Database => AppendQuote(DbConfig.Database) + ".";
 
         public override SqlDialect SqlDialect => SqlDialect.PostgreSQL;
 
@@ -33,19 +33,19 @@ namespace NetModular.Lib.Data.PostgreSQL
         public override bool ToLower => true;
         public override string ConnectionStringBuild(string tableName = null)
         {
-            if (tableName.IsNull() && Options.ConnectionString.NotNull())
-                return Options.ConnectionString;
+            if (tableName.IsNull() && DbConfig.ConnectionString.NotNull())
+                return DbConfig.ConnectionString;
 
             Check.NotNull(DbOptions.Server, nameof(DbOptions.Server), "数据库服务器地址不能为空");
             Check.NotNull(DbOptions.UserId, nameof(DbOptions.UserId), "数据库用户名不能为空");
             Check.NotNull(DbOptions.Password, nameof(DbOptions.Password), "数据库密码不能为空");
 
-            Options.Version = DbOptions.Version;
+            DbConfig.Version = DbOptions.Version;
             var connStrBuilder = new NpgsqlConnectionStringBuilder
             {
                 Host = DbOptions.Server,
                 Port = DbOptions.Port > 0 ? DbOptions.Port : 5432,
-                Database = tableName.NotNull() ? tableName : Options.Database,
+                Database = tableName.NotNull() ? tableName : DbConfig.Database,
                 Username = DbOptions.UserId,
                 Password = DbOptions.Password
             };
@@ -58,7 +58,7 @@ namespace NetModular.Lib.Data.PostgreSQL
 
             //该参数为null表示使用的是当前模块的数据库
             if (tableName.IsNull())
-                Options.ConnectionString = connStr;
+                DbConfig.ConnectionString = connStr;
 
             return connStr;
         }
@@ -112,13 +112,13 @@ namespace NetModular.Lib.Data.PostgreSQL
                 con1.Close();
             }
 
-            using var con = new NpgsqlConnection(Options.ConnectionString);
+            using var con = new NpgsqlConnection(DbConfig.ConnectionString);
             con.Open();
             var cmd = con.CreateCommand();
             cmd.CommandType = System.Data.CommandType.Text;
 
             //判断数据库是否已存在
-            cmd.CommandText = $"SELECT 1 FROM pg_namespace WHERE nspname = '{Options.Database}' LIMIT 1;";
+            cmd.CommandText = $"SELECT 1 FROM pg_namespace WHERE nspname = '{DbConfig.Database}' LIMIT 1;";
             databaseExists = cmd.ExecuteScalar().ToInt() > 0;
             if (!databaseExists)
             {
@@ -126,7 +126,7 @@ namespace NetModular.Lib.Data.PostgreSQL
                 events?.Before().GetAwaiter().GetResult();
 
                 //创建数据库
-                cmd.CommandText = $"CREATE SCHEMA {Options.Database};";
+                cmd.CommandText = $"CREATE SCHEMA {DbConfig.Database};";
                 cmd.ExecuteNonQuery();
             }
 
@@ -259,7 +259,7 @@ namespace NetModular.Lib.Data.PostgreSQL
         {
             var columns = entityDescriptor.Columns;
             var sql = new StringBuilder();
-            sql.AppendFormat("CREATE TABLE IF NOT EXISTS {0}.{1}(", AppendQuote(Options.Database), AppendQuote(tableName ?? entityDescriptor.TableName.ToLower()));
+            sql.AppendFormat("CREATE TABLE IF NOT EXISTS {0}.{1}(", AppendQuote(DbConfig.Database), AppendQuote(tableName ?? entityDescriptor.TableName.ToLower()));
 
             for (int i = 0; i < columns.Count; i++)
             {

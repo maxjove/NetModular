@@ -25,7 +25,7 @@ namespace NetModular.Lib.Data.PostgreSQL
 
         public override IDbConnection NewConnection()
         {
-            return new NpgsqlConnection(DbModuleOptions.ConnectionString);
+            return new NpgsqlConnection(DbConfig.ConnectionString);
         }
     }
 }

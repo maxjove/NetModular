@@ -12,14 +12,14 @@ namespace NetModular.Lib.Data.Abstractions
         #region ==属性==
 
         /// <summary>
-        /// 数据库配置项
+        /// 数据库配置
         /// </summary>
         DbOptions DbOptions { get; }
 
         /// <summary>
-        /// 数据库模块
+        /// 数据库配置
         /// </summary>
-        DbModuleOptions Options { get; }
+        DbConfig DbConfig { get; }
 
         /// <summary>
         /// 数据库名称

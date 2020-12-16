@@ -20,7 +20,7 @@ namespace NetModular.Lib.Data.SQLite
 
         public override IDbConnection NewConnection()
         {
-            return new SqliteConnection(DbModuleOptions.ConnectionString);
+            return new SqliteConnection(DbConfig.ConnectionString);
         }
     }
 }

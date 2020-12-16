@@ -24,7 +24,7 @@ namespace NetModular.Lib.Data.Core.Entities
         /// <summary>
         /// 数据库配置
         /// </summary>
-        public DbModuleOptions DbOptions { get; }
+        public DbConfig DbConfig { get; }
 
         /// <summary>
         /// 数据库名称
@@ -82,11 +82,11 @@ namespace NetModular.Lib.Data.Core.Entities
         {
             DbContext = dbContext;
 
-            DbOptions = dbContext.Options.DbModuleOptions;
+            DbConfig = dbContext.Options.DbConfig;
 
             SqlAdapter = dbContext.Options.SqlAdapter;
 
-            ModuleName = DbOptions.Name;
+            ModuleName = DbConfig.Name;
 
             EntityType = entityType;
 
@@ -136,12 +136,12 @@ namespace NetModular.Lib.Data.Core.Entities
             }
 
             //判断有没有设置前缀
-            if (SqlAdapter.Options.Prefix.NotNull())
+            if (SqlAdapter.DbConfig.Prefix.NotNull())
             {
                 var prefixIgnoreArr = EntityType.GetCustomAttribute<PrefixIgnoreAttribute>(false);
                 if (prefixIgnoreArr == null)
                 {
-                    TableName = SqlAdapter.Options.Prefix + TableName;
+                    TableName = SqlAdapter.DbConfig.Prefix + TableName;
                 }
             }
 

@@ -46,7 +46,8 @@ namespace NetModular.Lib.Data.Core
             //加载实体描述符
             LoadEntityDescriptors();
 
-            if (Options.DbOptions.CreateDatabase)
+            //从库不自动创建数据库
+            if (!options.DbConfig.IsSlave && Options.DbOptions.CreateDatabase)
             {
                 if (Options.DatabaseCreateEvents != null)
                 {
@@ -130,7 +131,7 @@ namespace NetModular.Lib.Data.Core
 
         public void LoadEntityDescriptors()
         {
-            var entityTypes = Options.DbModuleOptions.EntityTypes;
+            var entityTypes = Options.DbConfig.EntityTypes;
             if (entityTypes != null && entityTypes.Any())
             {
                 foreach (var entityType in entityTypes)
@@ -142,7 +143,7 @@ namespace NetModular.Lib.Data.Core
 
         public void CreateDatabase()
         {
-            Options.SqlAdapter.CreateDatabase(EntityDescriptorCollection.Get(Options.DbModuleOptions.Name), Options.DatabaseCreateEvents, out bool exists);
+            Options.SqlAdapter.CreateDatabase(EntityDescriptorCollection.Get(Options.DbConfig.Name), Options.DatabaseCreateEvents, out bool exists);
             DatabaseExists = exists;
         }
 

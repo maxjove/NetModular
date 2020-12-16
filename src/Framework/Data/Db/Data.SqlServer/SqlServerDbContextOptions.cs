@@ -18,7 +18,7 @@ namespace NetModular.Lib.Data.SqlServer
 
         public override IDbConnection NewConnection()
         {
-            return new SqlConnection(DbModuleOptions.ConnectionString);
+            return new SqlConnection(DbConfig.ConnectionString);
         }
     }
 }

@@ -111,100 +111,152 @@ namespace NetModular.Lib.Data.Integration
                 //登录信息
                 var loginInfo = sp.GetService<ILoginInfo>();
 
-                //数据库上下文配置项
-                var contextOptions = (IDbContextOptions)Activator.CreateInstance(dbContextOptionsType, dbOptions, options, loggerFactory, loginInfo);
+                //添加主库上下文和仓储
+                var masterDbContext = services.AddDbContext(dbContextType, dbContextOptionsType, module, options, dbOptions, loggerFactory, loginInfo);
+                services.AddMasterRepositories(module, masterDbContext, dbOptions);
 
-                //数据库创建事件
-                var createDatabaseEvent = module.AssemblyDescriptor.Infrastructure.GetTypes().FirstOrDefault(m => typeof(IDatabaseCreateEvents).IsAssignableFrom(m));
-                if (createDatabaseEvent != null)
+                //添加从库上下文和仓储
+                if (options.Slave != null && options.ConnectionString.NotNull())
                 {
-                    contextOptions.DatabaseCreateEvents = (IDatabaseCreateEvents)Activator.CreateInstance(createDatabaseEvent);
+                    #region ==设置从库参数==
+
+                    var slave = options.Slave;
+                    if (slave.Database.IsNull())
+                    {
+                        slave.Database = options.Database;
+                    }
+
+                    if (slave.Name.IsNull())
+                    {
+                        slave.Name = options.Name;
+                    }
+
+                    if (slave.MySqlCharacterSet.IsNull())
+                    {
+                        slave.MySqlCharacterSet = options.MySqlCharacterSet;
+                    }
+
+                    if (slave.Version.IsNull())
+                    {
+                        slave.Version = options.Version;
+                    }
+
+                    if (slave.MySqlSslMode.IsNull())
+                    {
+                        slave.MySqlSslMode = options.MySqlSslMode;
+                    }
+
+                    if (slave.Prefix.IsNull())
+                    {
+                        slave.Prefix = options.Prefix;
+                    }
+
+                    #endregion
+
+                    options.Slave.EntityTypes = options.EntityTypes;
+                    options.Slave.IsSlave = true;
+
+                    var slaveDbContext = services.AddDbContext(dbContextType, dbContextOptionsType, module, options.Slave, dbOptions, loggerFactory, loginInfo);
+                    services.AddSlaveRepositories(module, slaveDbContext, dbOptions);
                 }
-
-                //创建数据库上下文实例
-                var dbContext = (IDbContext)Activator.CreateInstance(dbContextType, contextOptions);
-
-                #region ==执行初始化脚本==
-
-                //当开启初始化脚本 && 开启自动创建数据库 && 数据库不存在
-                if (dbOptions.InitData && dbOptions.CreateDatabase && !dbContext.DatabaseExists)
-                {
-                    var dbScriptPath = "";
-                    switch (dbOptions.Dialect)
-                    {
-                        case SqlDialect.SqlServer:
-                            dbScriptPath = module.InitDataScriptDescriptor.SqlServer;
-                            break;
-                        case SqlDialect.MySql:
-                            dbScriptPath = module.InitDataScriptDescriptor.MySql;
-                            break;
-                        case SqlDialect.SQLite:
-                            dbScriptPath = module.InitDataScriptDescriptor.SQLite;
-                            break;
-                        case SqlDialect.PostgreSQL:
-                            dbScriptPath = module.InitDataScriptDescriptor.PostgreSQL;
-                            break;
-                        case SqlDialect.Oracle:
-                            dbScriptPath = module.InitDataScriptDescriptor.Oracle;
-                            break;
-                    }
-
-                    if (dbScriptPath.NotNull() && File.Exists(dbScriptPath))
-                    {
-                        using var sr = new StreamReader(dbScriptPath);
-                        var sql = sr.ReadToEnd();
-
-                        if (sql.NotNull())
-                        {
-                            if (dbOptions.Dialect == SqlDialect.PostgreSQL)
-                            {
-                                sql = sql.Replace("[nm_database_name]", options.Database);
-                            }
-
-                            //此处不能使用IDbContext的NewConnection方法创建连接
-                            var con = dbContext.Options.NewConnection();
-
-                            con.Execute(sql);
-                        }
-                    }
-
-                    var jsonDir = module.InitDataScriptDescriptor.JsonDataDirectory;
-                    if (jsonDir.NotNull() && Directory.Exists(jsonDir))
-                    {
-                        string[] jsonFiles = Directory.GetFiles(jsonDir, "*.json");
-
-                        var genericType = typeof(DbSet<>);
-                        foreach (var jsonFile in jsonFiles)
-                        {
-                            string typeName = Path.GetFileNameWithoutExtension(jsonFile);
-                            var entityType = dbContext.Options.DbModuleOptions.EntityTypes.Find(a => string.Equals(a.Name, typeName, StringComparison.OrdinalIgnoreCase) || a.Name.EndsWith("Entity") && string.Equals(a.Name.Substring(0, a.Name.Length - 6), typeName, StringComparison.OrdinalIgnoreCase));
-
-                            if (entityType == null) continue;
-
-                            using var sr = new StreamReader(jsonFile);
-                            var json = sr.ReadToEnd();
-                            var list = JsonConvert.DeserializeObject(json, typeof(List<>).MakeGenericType(entityType));
-                            
-                            var dbSetType = genericType.MakeGenericType(entityType);
-                            var db = Activator.CreateInstance(dbSetType, new object[] { dbContext });
-                            dbSetType.GetMethod("BatchInsert").Invoke(db, new object[] { list, 10000, null, null });
-                        }
-                    }
-                }
-
-                #endregion
-
-                //注入数据库上下文
-                services.AddSingleton(dbContextType, dbContext);
-
-                services.AddRepositories(module, dbContext, dbOptions);
             }
         }
 
+        private static IDbContext AddDbContext(this IServiceCollection services, Type dbContextType, Type dbContextOptionsType, IModuleDescriptor module,
+            DbConfig dbConfig, DbOptions dbOptions, ILoggerFactory loggerFactory, ILoginInfo loginInfo)
+        {
+            var contextOptions = (IDbContextOptions)Activator.CreateInstance(dbContextOptionsType, dbOptions, dbConfig, loggerFactory, loginInfo);
+
+            //数据库创建事件
+            var createDatabaseEvent = module.AssemblyDescriptor.Infrastructure.GetTypes().FirstOrDefault(m => typeof(IDatabaseCreateEvents).IsAssignableFrom(m));
+            if (createDatabaseEvent != null)
+            {
+                contextOptions.DatabaseCreateEvents = (IDatabaseCreateEvents)Activator.CreateInstance(createDatabaseEvent);
+            }
+
+            //创建数据库上下文实例
+            var dbContext = (IDbContext)Activator.CreateInstance(dbContextType, contextOptions);
+
+            #region ==执行初始化脚本==
+
+            //当开启初始化脚本 && 开启自动创建数据库 && 数据库不存在
+            if (dbOptions.InitData && dbOptions.CreateDatabase && !dbContext.DatabaseExists)
+            {
+                var dbScriptPath = "";
+                switch (dbOptions.Dialect)
+                {
+                    case SqlDialect.SqlServer:
+                        dbScriptPath = module.InitDataScriptDescriptor.SqlServer;
+                        break;
+                    case SqlDialect.MySql:
+                        dbScriptPath = module.InitDataScriptDescriptor.MySql;
+                        break;
+                    case SqlDialect.SQLite:
+                        dbScriptPath = module.InitDataScriptDescriptor.SQLite;
+                        break;
+                    case SqlDialect.PostgreSQL:
+                        dbScriptPath = module.InitDataScriptDescriptor.PostgreSQL;
+                        break;
+                    case SqlDialect.Oracle:
+                        dbScriptPath = module.InitDataScriptDescriptor.Oracle;
+                        break;
+                }
+
+                if (dbScriptPath.NotNull() && File.Exists(dbScriptPath))
+                {
+                    using var sr = new StreamReader(dbScriptPath);
+                    var sql = sr.ReadToEnd();
+
+                    if (sql.NotNull())
+                    {
+                        if (dbOptions.Dialect == SqlDialect.PostgreSQL)
+                        {
+                            sql = sql.Replace("[nm_database_name]", dbConfig.Database);
+                        }
+
+                        //此处不能使用IDbContext的NewConnection方法创建连接
+                        var con = dbContext.Options.NewConnection();
+
+                        con.Execute(sql);
+                    }
+                }
+
+                var jsonDir = module.InitDataScriptDescriptor.JsonDataDirectory;
+                if (jsonDir.NotNull() && Directory.Exists(jsonDir))
+                {
+                    string[] jsonFiles = Directory.GetFiles(jsonDir, "*.json");
+
+                    var genericType = typeof(DbSet<>);
+                    foreach (var jsonFile in jsonFiles)
+                    {
+                        string typeName = Path.GetFileNameWithoutExtension(jsonFile);
+                        var entityType = dbContext.Options.DbConfig.EntityTypes.Find(a => string.Equals(a.Name, typeName, StringComparison.OrdinalIgnoreCase) || a.Name.EndsWith("Entity") && string.Equals(a.Name.Substring(0, a.Name.Length - 6), typeName, StringComparison.OrdinalIgnoreCase));
+
+                        if (entityType == null) continue;
+
+                        using var sr = new StreamReader(jsonFile);
+                        var json = sr.ReadToEnd();
+                        var list = JsonConvert.DeserializeObject(json, typeof(List<>).MakeGenericType(entityType));
+
+                        var dbSetType = genericType.MakeGenericType(entityType);
+                        var db = Activator.CreateInstance(dbSetType, new object[] { dbContext });
+                        dbSetType.GetMethod("BatchInsert").Invoke(db, new object[] { list, 10000, null, null });
+                    }
+                }
+            }
+
+            #endregion
+
+            //注入数据库上下文
+            services.AddSingleton(dbContextType, dbContext);
+
+            return dbContext;
+        }
+
         /// <summary>
-        /// 添加仓储
+        /// 添加主库仓储
         /// </summary>
-        private static void AddRepositories(this IServiceCollection services, IModuleDescriptor module, IDbContext dbContext, DbOptions dbOptions)
+        private static void AddMasterRepositories(this IServiceCollection services, IModuleDescriptor module, IDbContext dbContext, DbOptions dbOptions)
         {
             var interfaceList = module.AssemblyDescriptor.Domain.GetTypes().Where(t => t.IsInterface && typeof(IRepository<>).IsImplementType(t)).ToList();
 
@@ -224,11 +276,38 @@ namespace NetModular.Lib.Data.Integration
         }
 
         /// <summary>
+        /// 添加从库仓储
+        /// </summary>
+        private static void AddSlaveRepositories(this IServiceCollection services, IModuleDescriptor module, IDbContext dbContext, DbOptions dbOptions)
+        {
+            var interfaceList = module.AssemblyDescriptor.Domain.GetTypes().Where(t => t.IsInterface && typeof(IRepository<>).IsImplementType(t)).ToList();
+
+            if (!interfaceList.Any())
+                return;
+
+            var genericServiceType = typeof(ISlaveRepository<>);
+            var genericImplementType = typeof(SlaveRepository<>);
+
+            //根据仓储的命名空间名称来注入不同数据库的仓储
+            var entityNamespacePrefix = $"{module.AssemblyDescriptor.Infrastructure.GetName().Name}.Repositories.{dbOptions.Dialect}.";
+            foreach (var serviceType in interfaceList)
+            {
+                var implementType = module.AssemblyDescriptor.Infrastructure.GetTypes().FirstOrDefault(m => m.FullName.NotNull() && m.FullName.StartsWith(entityNamespacePrefix) && serviceType.IsAssignableFrom(m));
+                if (implementType != null)
+                {
+                    var slaveServiceType = genericServiceType.MakeGenericType(serviceType);
+                    var slaveImplementType = genericImplementType.MakeGenericType(implementType);
+                    services.AddSingleton(slaveServiceType, Activator.CreateInstance(slaveImplementType, dbContext));
+                }
+            }
+        }
+
+        /// <summary>
         /// 加载实体类型列表
         /// </summary>
         /// <param name="module"></param>
         /// <param name="options"></param>
-        private static void LoadEntityTypes(IModuleDescriptor module, DbModuleOptions options)
+        private static void LoadEntityTypes(IModuleDescriptor module, DbConfig options)
         {
             options.EntityTypes = module.AssemblyDescriptor.Domain.GetTypes().Where(t => t.IsClass && typeof(IEntity).IsImplementType(t)).ToList();
         }

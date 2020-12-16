@@ -39,7 +39,7 @@ namespace NetModular.Lib.Data.Abstractions
         /// <summary>
         /// 数据库模块信息
         /// </summary>
-        DbModuleOptions DbModuleOptions { get; }
+        DbConfig DbConfig { get; }
 
         /// <summary>
         /// 创建数据库事件

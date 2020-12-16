@@ -21,7 +21,7 @@ namespace NetModular.Lib.Data.Abstractions.Entities
         /// <summary>
         /// 数据库配置信息
         /// </summary>
-        DbModuleOptions DbOptions { get; }
+        DbConfig DbConfig { get; }
 
         /// <summary>
         /// 数据库名称

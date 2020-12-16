@@ -25,7 +25,7 @@ namespace NetModular.Lib.Data.MySql
 
         public override IDbConnection NewConnection()
         {
-            return new MySqlConnection(DbModuleOptions.ConnectionString);
+            return new MySqlConnection(DbConfig.ConnectionString);
         }
     }
 }

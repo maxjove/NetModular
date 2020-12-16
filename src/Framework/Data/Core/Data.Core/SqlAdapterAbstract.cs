@@ -11,10 +11,10 @@ namespace NetModular.Lib.Data.Core
 {
     public abstract class SqlAdapterAbstract : ISqlAdapter
     {
-        protected SqlAdapterAbstract(DbOptions dbOptions, DbModuleOptions options, ILogger logger)
+        protected SqlAdapterAbstract(DbOptions dbOptions, DbConfig dbConfig, ILogger logger)
         {
             DbOptions = dbOptions;
-            Options = options;
+            DbConfig = dbConfig;
             Logger = logger;
         }
 
@@ -25,7 +25,7 @@ namespace NetModular.Lib.Data.Core
 
         public DbOptions DbOptions { get; }
 
-        public DbModuleOptions Options { get; }
+        public DbConfig DbConfig { get; }
 
         public abstract string Database { get; }
 

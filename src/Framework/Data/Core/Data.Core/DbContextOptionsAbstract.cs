@@ -23,7 +23,7 @@ namespace NetModular.Lib.Data.Core
                 throw new ArgumentNullException(nameof(options.Name), "数据库连接名称未配置");
 
             DbOptions = dbOptions;
-            DbModuleOptions = options;
+            DbConfig = options;
             SqlAdapter = sqlAdapter;
             LoggerFactory = loggerFactory;
             LoginInfo = loginInfo;
@@ -32,7 +32,7 @@ namespace NetModular.Lib.Data.Core
             sqlAdapter.ConnectionStringBuild();
         }
 
-        public DbModuleOptions DbModuleOptions { get; }
+        public DbConfig DbConfig { get; }
 
         public IDatabaseCreateEvents DatabaseCreateEvents { get; set; }
 

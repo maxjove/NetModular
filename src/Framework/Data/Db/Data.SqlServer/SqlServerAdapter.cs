@@ -13,11 +13,11 @@ namespace NetModular.Lib.Data.SqlServer
 {
     public class SqlServerAdapter : SqlAdapterAbstract
     {
-        public SqlServerAdapter(DbOptions dbOptions, DbModuleOptions options, ILoggerFactory loggerFactory) : base(dbOptions, options, loggerFactory?.CreateLogger<SqlServerAdapter>())
+        public SqlServerAdapter(DbOptions dbOptions, DbConfig dbConfig, ILoggerFactory loggerFactory) : base(dbOptions, dbConfig, loggerFactory?.CreateLogger<SqlServerAdapter>())
         {
         }
 
-        public override string Database => AppendQuote(Options.Database) + "..";
+        public override string Database => AppendQuote(DbConfig.Database) + "..";
 
         /// <summary>
         /// 左引号
@@ -39,21 +39,21 @@ namespace NetModular.Lib.Data.SqlServer
         public override string FuncLength => "LEN";
         public override string ConnectionStringBuild(string tableName = null)
         {
-            if (tableName.IsNull() && Options.ConnectionString.NotNull())
-                return Options.ConnectionString;
+            if (tableName.IsNull() && DbConfig.ConnectionString.NotNull())
+                return DbConfig.ConnectionString;
 
             Check.NotNull(DbOptions.Server, nameof(DbOptions.Server), "数据库服务器地址不能为空");
             Check.NotNull(DbOptions.UserId, nameof(DbOptions.UserId), "数据库用户名不能为空");
             Check.NotNull(DbOptions.Password, nameof(DbOptions.Password), "数据库密码不能为空");
 
-            Options.Version = DbOptions.Version;
+            DbConfig.Version = DbOptions.Version;
             var connStrBuilder = new SqlConnectionStringBuilder
             {
                 DataSource = DbOptions.Port > 0 ? DbOptions.Server + "," + DbOptions.Port : DbOptions.Server,
                 UserID = DbOptions.UserId,
                 Password = DbOptions.Password,
                 MultipleActiveResultSets = true,
-                InitialCatalog = tableName.NotNull() ? tableName : Options.Database,
+                InitialCatalog = tableName.NotNull() ? tableName : DbConfig.Database,
                 MaxPoolSize = DbOptions.MaxPoolSize < 1 ? 100 : DbOptions.MaxPoolSize,
                 MinPoolSize = DbOptions.MinPoolSize < 1 ? 0 : DbOptions.MinPoolSize
             };
@@ -62,7 +62,7 @@ namespace NetModular.Lib.Data.SqlServer
 
             //该参数为null表示使用的是当前模块的数据库
             if (tableName.IsNull())
-                Options.ConnectionString = connStr;
+                DbConfig.ConnectionString = connStr;
 
             return connStr;
         }
@@ -71,7 +71,7 @@ namespace NetModular.Lib.Data.SqlServer
         {
             var sqlBuilder = new StringBuilder();
 
-            if (Options.Version.IsNull() || Options.Version.ToInt() >= 2012)
+            if (DbConfig.Version.IsNull() || DbConfig.Version.ToInt() >= 2012)
             {
                 #region ==2012+版本==
 
@@ -139,7 +139,7 @@ namespace NetModular.Lib.Data.SqlServer
             cmd.CommandType = System.Data.CommandType.Text;
 
             //判断数据库是否已存在
-            cmd.CommandText = $"SELECT TOP 1 1 FROM sysdatabases WHERE name = '{Options.Database}'";
+            cmd.CommandText = $"SELECT TOP 1 1 FROM sysdatabases WHERE name = '{DbConfig.Database}'";
             databaseExists = cmd.ExecuteScalar().ToInt() > 0;
             if (!databaseExists)
             {
@@ -147,11 +147,11 @@ namespace NetModular.Lib.Data.SqlServer
                 events?.Before().GetAwaiter().GetResult();
 
                 //创建数据库
-                cmd.CommandText = $"CREATE DATABASE [{Options.Database}]";
+                cmd.CommandText = $"CREATE DATABASE [{DbConfig.Database}]";
                 cmd.ExecuteNonQuery();
             }
 
-            cmd.CommandText = $"USE [{Options.Database}];";
+            cmd.CommandText = $"USE [{DbConfig.Database}];";
             cmd.ExecuteNonQuery();
 
             //创建表

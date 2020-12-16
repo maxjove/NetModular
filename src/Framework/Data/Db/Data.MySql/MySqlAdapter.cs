@@ -14,11 +14,11 @@ namespace NetModular.Lib.Data.MySql
 {
     internal class MySqlAdapter : SqlAdapterAbstract
     {
-        public MySqlAdapter(DbOptions dbOptions, DbModuleOptions options, ILoggerFactory loggerFactory) : base(dbOptions, options, loggerFactory?.CreateLogger<MySqlAdapter>())
+        public MySqlAdapter(DbOptions dbOptions, DbConfig dbConfig, ILoggerFactory loggerFactory) : base(dbOptions, dbConfig, loggerFactory?.CreateLogger<MySqlAdapter>())
         {
         }
 
-        public override string Database => AppendQuote(Options.Database) + ".";
+        public override string Database => AppendQuote(DbConfig.Database) + ".";
 
         public override SqlDialect SqlDialect => SqlDialect.MySql;
 
@@ -40,21 +40,21 @@ namespace NetModular.Lib.Data.MySql
         public override string FuncLength => "CHAR_LENGTH";
         public override string ConnectionStringBuild(string tableName = null)
         {
-            if (tableName.IsNull() && Options.ConnectionString.NotNull())
-                return Options.ConnectionString;
+            if (tableName.IsNull() && DbConfig.ConnectionString.NotNull())
+                return DbConfig.ConnectionString;
 
             Check.NotNull(DbOptions.Server, nameof(DbOptions.Server), "数据库服务器地址不能为空");
             Check.NotNull(DbOptions.UserId, nameof(DbOptions.UserId), "数据库用户名不能为空");
             Check.NotNull(DbOptions.Password, nameof(DbOptions.Password), "数据库密码不能为空");
 
-            Options.Version = DbOptions.Version;
+            DbConfig.Version = DbOptions.Version;
 
             #region ==字符编码==
 
             var characterSet = "utf8";
-            if (Options.MySqlCharacterSet.NotNull())
+            if (DbConfig.MySqlCharacterSet.NotNull())
             {
-                characterSet = Options.MySqlCharacterSet;
+                characterSet = DbConfig.MySqlCharacterSet;
             }
             else if (DbOptions.MySqlCharacterSet.NotNull())
             {
@@ -66,9 +66,9 @@ namespace NetModular.Lib.Data.MySql
             #region ==SslMode==
 
             var sslModeStr = "None";
-            if (Options.MySqlSslMode.NotNull())
+            if (DbConfig.MySqlSslMode.NotNull())
             {
-                sslModeStr = Options.MySqlSslMode;
+                sslModeStr = DbConfig.MySqlSslMode;
             }
             else if (DbOptions.MySqlSslMode.NotNull())
             {
@@ -83,7 +83,7 @@ namespace NetModular.Lib.Data.MySql
             {
                 Server = DbOptions.Server,
                 Port = DbOptions.Port > 0 ? (uint)DbOptions.Port : 3306,
-                Database = tableName.IsNull() ? Options.Database : tableName,
+                Database = tableName.IsNull() ? DbConfig.Database : tableName,
                 UserID = DbOptions.UserId,
                 Password = DbOptions.Password,
                 AllowUserVariables = true,
@@ -98,7 +98,7 @@ namespace NetModular.Lib.Data.MySql
 
             //该参数为null表示使用的是当前模块的数据库
             if (tableName.IsNull())
-                Options.ConnectionString = connStr;
+                DbConfig.ConnectionString = connStr;
 
             return connStr;
         }
@@ -141,7 +141,7 @@ namespace NetModular.Lib.Data.MySql
             cmd.CommandType = System.Data.CommandType.Text;
 
             //判断数据库是否已存在
-            cmd.CommandText = $"SELECT 1 FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '{Options.Database}' LIMIT 1;";
+            cmd.CommandText = $"SELECT 1 FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = '{DbConfig.Database}' LIMIT 1;";
             databaseExists = cmd.ExecuteScalar().ToInt() > 0;
             if (!databaseExists)
             {
@@ -149,11 +149,11 @@ namespace NetModular.Lib.Data.MySql
                 events?.Before().GetAwaiter().GetResult();
 
                 //创建数据库
-                cmd.CommandText = $"CREATE DATABASE {Options.Database} CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;";
+                cmd.CommandText = $"CREATE DATABASE {DbConfig.Database} CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;";
                 cmd.ExecuteNonQuery();
             }
 
-            cmd.CommandText = $"USE `{Options.Database}`;";
+            cmd.CommandText = $"USE `{DbConfig.Database}`;";
             cmd.ExecuteNonQuery();
 
             //创建表

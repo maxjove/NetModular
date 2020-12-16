@@ -8,10 +8,18 @@ using NetModular.Lib.Data.Abstractions.SqlQueryable;
 namespace NetModular.Lib.Data.Abstractions
 {
     /// <summary>
+    /// 仓储接口
+    /// </summary>
+    public interface IRepository
+    {
+
+    }
+
+    /// <summary>
     /// 泛型仓储接口
     /// </summary>
     /// <typeparam name="TEntity"></typeparam>
-    public interface IRepository<TEntity> where TEntity : IEntity, new()
+    public interface IRepository<TEntity> : IRepository where TEntity : IEntity, new()
     {
         #region ==Exists==
 
